@@ -4,10 +4,20 @@ dotEnv.config()
 const dbConnect = require('./dbConnect')
 const user = require ('./user')
 const bcrypt = require ('bcrypt')
+const expressSession = require ('express-session')
 
 const port = process.env.PORT || 3000
+const session_secret = process.env.SESSION_SECRET
 
 const app = express()
+
+// express session configuration
+app.use(expressSession({
+    secret : session_secret,
+    resave : false,
+    saveUninitialized : true,
+    cookie : {}
+}))
 
 // fetching the data from form submission
 app.use(express.urlencoded({extended:false}))
@@ -46,9 +56,27 @@ app.post('/login',async(req, res)=>{
     if(!isPasswordCorrect)
     return res.send('invalid credentials, try again')
 
+    req.session.user = results.id
     res.send('Login successfully !!')
     }catch(error){
         res.send ('unable to handle request currently, please try again')
+    }
+})
+
+const isUserAuthenticated = (req, res, next)=>{
+    if(req.session.user)
+    return next()
+
+    res.send('please Login First')
+}
+
+app.get('/home-page',isUserAuthenticated,async (req, res)=>{
+    try{
+        const userID = req.session.user
+        const userInfo = await user.findOne({where :{id: userID}})
+        res.send(`welcome ${userInfo.user_name}`)
+    }catch(error){
+        res.send('unable to handle request')
     }
 })
 
